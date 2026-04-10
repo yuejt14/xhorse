@@ -90,6 +90,10 @@ When you receive evaluation feedback:
 5. Update the self-assessment with new evidence
 6. Commit fixes: `xhorse sprint N rework: <what was fixed>`
 
+## Constraints
+
+- You cannot spawn subagents. Do all work directly using your available tools (Read, Write, Glob, Grep, Bash).
+
 ## Anti-Patterns to Avoid
 
 - Do not write tests that always pass (`expect(true).toBe(true)`)

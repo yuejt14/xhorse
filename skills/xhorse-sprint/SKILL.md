@@ -47,7 +47,11 @@ Spawn the generator agent:
 ```
 Agent({
   description: "Implement sprint N",
-  prompt: "You are the Generator agent. Read your instructions at agents/generator.md. Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done.",
+  prompt: "You are the Generator agent. Read your instructions at agents/generator.md.
+
+TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+
+Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done.",
   model: "<generator_model from config>"
 })
 ```
@@ -81,10 +85,16 @@ If pre-checks pass (or no commands configured), proceed to evaluation.
 
 Spawn the evaluator agent:
 
+**IMPORTANT**: The evaluator MUST NOT have access to Write or Edit tools. Include the tool restriction in the prompt. This is a security boundary — the evaluator judges, it does not modify.
+
 ```
 Agent({
   description: "Evaluate sprint N",
-  prompt: "You are the Evaluator agent. Read your instructions at agents/evaluator.md. Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files.",
+  prompt: "You are the Evaluator agent. Read your instructions at agents/evaluator.md.
+
+TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.
+
+Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files.",
   model: "<evaluator_model from config>"
 })
 ```

@@ -1,6 +1,6 @@
 ---
 name: xhorse
-description: Launch the GAN-inspired three-agent development harness. Orchestrates Planner, Generator, and Evaluator agents through iterative sprint cycles to build complex applications with adversarial quality assurance. Use when building full applications, implementing large features, or running structured multi-sprint development.
+description: Build complex applications using a three-agent harness (Planner, Generator, Evaluator) with iterative sprint cycles and adversarial evaluation. Use for full apps, large features, or multi-sprint development.
 argument-hint: "[description of what to build]"
 allowed-tools:
   - Read
@@ -102,6 +102,8 @@ Check if `.xhorse/status.json` exists in the current working directory.
 
    Read your full instructions at agents/planner.md.
 
+   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+
    USER REQUEST: $ARGUMENTS
 
    TASK:
@@ -173,6 +175,8 @@ Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get
 
    Read your full instructions at agents/generator.md.
 
+   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+
    TASK: Implement Sprint <N>.
    - Product spec: .xhorse/spec.md
    - Sprint contract: .xhorse/current-sprint.md
@@ -218,12 +222,17 @@ If pre-checks pass (or not configured), proceed to 3d.
    ```
 
 2. Spawn the **evaluator agent**:
+
+   **IMPORTANT**: The evaluator MUST NOT have access to Write or Edit tools. Include the tool restriction in the prompt. This is a security boundary — the evaluator judges, it does not modify.
+
    ```
    Agent({
      description: "Evaluate sprint <N>",
      prompt: "You are the Evaluator agent for the xhorse harness.
 
    Read your full instructions at agents/evaluator.md.
+
+   TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.
 
    TASK: Evaluate Sprint <N>, Iteration <M>.
    - Product spec: .xhorse/spec.md

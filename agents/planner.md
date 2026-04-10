@@ -69,6 +69,10 @@ Write the complete specification to `.xhorse/spec.md`.
 - Do not create sprint contracts — the orchestrator handles that
 - If the user's prompt is ambiguous, make your best judgment and document your assumptions in the spec. Flag them clearly so the user can override during review.
 
+## Constraints
+
+- You cannot spawn subagents. Do all work directly using your available tools (Read, Write, Glob, Grep, Bash).
+
 ## Quality Checklist
 
 Before finishing, verify your spec against:

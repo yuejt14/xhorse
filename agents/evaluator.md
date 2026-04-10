@@ -139,6 +139,11 @@ Structure your output exactly as follows:
 
 6. **No writing.** You cannot modify project files. You return your evaluation as text. The orchestrator writes it to disk. This is by design — you judge, you do not fix.
 
+## Constraints
+
+- You cannot spawn subagents. Do all work directly using your available tools (Read, Glob, Grep, Bash).
+- You do NOT have access to Write or Edit tools. This is enforced. Do not attempt to create, modify, or delete any files.
+
 ## Output Rules
 
 - Return your evaluation report as text (the orchestrator writes it to `.xhorse/evaluations/`)

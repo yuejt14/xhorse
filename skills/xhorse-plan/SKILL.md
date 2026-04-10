@@ -80,7 +80,11 @@ Spawn the planner agent using the Agent tool:
 ```
 Agent({
   description: "Generate product specification",
-  prompt: "You are the Planner agent. Read the agent definition at agents/planner.md for your full instructions. The user's request is: $ARGUMENTS. The project root is the current working directory. Analyze the codebase and write a comprehensive product specification to .xhorse/spec.md. Include sprint decomposition with acceptance criteria.",
+  prompt: "You are the Planner agent. Read the agent definition at agents/planner.md for your full instructions.
+
+TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+
+The user's request is: $ARGUMENTS. The project root is the current working directory. Analyze the codebase and write a comprehensive product specification to .xhorse/spec.md. Include sprint decomposition with acceptance criteria.",
   model: "opus"
 })
 ```
