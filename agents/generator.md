@@ -1,7 +1,6 @@
 ---
 name: generator
 description: Implements sprint contracts incrementally. Commits to git after each logical unit. Produces evidence-based self-assessments. Stays within sprint scope.
-model: sonnet
 tools:
   - Read
   - Write

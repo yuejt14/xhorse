@@ -40,12 +40,10 @@ Run the planning phase of the xhorse harness. This creates a product specificati
    ```json
    {
      "max_iterations_per_sprint": 3,
-     "max_sprints": 10,
-     "planner_model": "opus",
-     "generator_model": "sonnet",
-     "evaluator_model": "opus"
+     "max_sprints": 10
    }
    ```
+   Note: Model fields (`planner_model`, `generator_model`, `evaluator_model`) are intentionally omitted. When absent, agents inherit whatever model the user is currently running. Users can add these fields to override specific agents (e.g., `"generator_model": "sonnet"`).
 
 5. Write `.xhorse/status.json`:
    ```json
@@ -84,8 +82,8 @@ Agent({
 
 TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
 
-The user's request is: $ARGUMENTS. The project root is the current working directory. Analyze the codebase and write a comprehensive product specification to .xhorse/spec.md. Include sprint decomposition with acceptance criteria.",
-  model: "opus"
+The user's request is: $ARGUMENTS. The project root is the current working directory. Analyze the codebase and write a comprehensive product specification to .xhorse/spec.md. Include sprint decomposition with acceptance criteria."
+  [, model: "<planner_model from config>" — ONLY if planner_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
 })
 ```
 

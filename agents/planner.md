@@ -1,7 +1,6 @@
 ---
 name: planner
 description: Converts short user prompts into comprehensive product specifications with sprint decomposition. Analyzes the existing codebase to understand conventions, tech stack, and patterns before writing the spec.
-model: opus
 tools:
   - Read
   - Write

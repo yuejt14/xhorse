@@ -5,19 +5,21 @@ A Claude Code plugin that orchestrates three specialized agents (Planner, Genera
 ## How It Works
 
 ```
-User prompt --> Planner (opus) --> Product Spec --> Sprint Loop:
-                                                     |
-                                                     +--> Generator (sonnet) --> Code
-                                                     |       |
-                                                     |       v
-                                                     |    Pre-checks (build, test, lint)
-                                                     |       |
-                                                     |       v
-                                                     +--> Evaluator (opus) --> PASS/WARN/FAIL
-                                                     |       |
-                                                     |       v (if FAIL)
-                                                     +--- Rework loop (up to N iterations)
+User prompt --> Planner --> Product Spec --> Sprint Loop:
+                                                 |
+                                                 +--> Generator --> Code
+                                                 |       |
+                                                 |       v
+                                                 |    Pre-checks (build, test, lint)
+                                                 |       |
+                                                 |       v
+                                                 +--> Evaluator --> PASS/WARN/FAIL
+                                                 |       |
+                                                 |       v (if FAIL)
+                                                 +--- Rework loop (up to N iterations)
 ```
+
+By default, all agents use whatever model you're running Claude Code with. Override individual agents via `.xhorse/config.json`.
 
 1. **Planner** analyzes your codebase and converts your prompt into a product spec with sprint decomposition
 2. **Generator** implements each sprint, commits incrementally, and produces a self-assessment
@@ -103,9 +105,11 @@ Default settings in `.xhorse/config.json` (created per session):
 |---------|---------|-------------|
 | `max_iterations_per_sprint` | 3 | Rework attempts before escalating to user |
 | `max_sprints` | 10 | Maximum sprints per session |
-| `planner_model` | opus | Model for planning |
-| `generator_model` | sonnet | Model for implementation |
-| `evaluator_model` | opus | Model for evaluation |
+| `planner_model` | *(current model)* | Override model for planning agent |
+| `generator_model` | *(current model)* | Override model for implementation agent |
+| `evaluator_model` | *(current model)* | Override model for evaluation agent |
+
+Model fields are omitted from the default config. When absent, agents inherit whatever model you're running Claude Code with. Add a model field to override a specific agent (e.g., `"generator_model": "sonnet"`). If upgrading from an older version, remove any `*_model` fields from existing `.xhorse/config.json` files to use model inheritance.
 
 ## Key Design Decisions
 

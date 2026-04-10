@@ -51,8 +51,8 @@ Agent({
 
 TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
 
-Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done.",
-  model: "<generator_model from config>"
+Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done."
+  [, model: "<generator_model from config>" — ONLY if generator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
 })
 ```
 
@@ -94,8 +94,8 @@ Agent({
 
 TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.
 
-Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files.",
-  model: "<evaluator_model from config>"
+Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files."
+  [, model: "<evaluator_model from config>" — ONLY if evaluator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
 })
 ```
 

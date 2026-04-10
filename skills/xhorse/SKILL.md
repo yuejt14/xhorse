@@ -58,12 +58,10 @@ Check if `.xhorse/status.json` exists in the current working directory.
    ```json
    {
      "max_iterations_per_sprint": 3,
-     "max_sprints": 10,
-     "planner_model": "opus",
-     "generator_model": "sonnet",
-     "evaluator_model": "opus"
+     "max_sprints": 10
    }
    ```
+   Note: Model fields (`planner_model`, `generator_model`, `evaluator_model`) are intentionally omitted. When absent, agents inherit whatever model the user is currently running. Users can add these fields to override specific agents (e.g., `"generator_model": "sonnet"`).
 
 6. Write `.xhorse/status.json` with:
    ```json
@@ -112,8 +110,8 @@ Check if `.xhorse/status.json` exists in the current working directory.
    3. The spec MUST include a Sprint Decomposition section with ordered sprints, each having: goal, scope, and 3-7 acceptance criteria with 'How to verify' instructions.
    4. Use the template structure from templates/product-spec.md as a guide.
 
-   Return a summary under 300 words: what the spec covers, number of sprints, key decisions.",
-     model: "opus"
+   Return a summary under 300 words: what the spec covers, number of sprints, key decisions."
+     [, model: "<planner_model from config>" — ONLY if planner_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
    })
    ```
 
@@ -185,8 +183,8 @@ Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get
 
    Implement the sprint scope. Commit incrementally. Run tests. Fill in the Self-Assessment section of .xhorse/current-sprint.md.
 
-   Return a summary under 300 words: what was implemented, test results, any concerns.",
-     model: "<generator_model from config>"
+   Return a summary under 300 words: what was implemented, test results, any concerns."
+     [, model: "<generator_model from config>" — ONLY if generator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
    })
    ```
 
@@ -244,8 +242,8 @@ If pre-checks pass (or not configured), proceed to 3d.
    Independently verify each acceptance criterion. Run tests. Check scope drift. Grade each criterion PASS/WARN/FAIL.
 
    Return your evaluation report as structured text. Do NOT write any files.
-   Format: use the structure defined in your agent instructions.",
-     model: "<evaluator_model from config>"
+   Format: use the structure defined in your agent instructions."
+     [, model: "<evaluator_model from config>" — ONLY if evaluator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
    })
    ```
 

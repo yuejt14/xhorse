@@ -17,10 +17,10 @@ The plugin consists of:
   - `skills/xhorse-status/SKILL.md` — Show current state, via `/xhorse-status`
   - `skills/xhorse/references/evaluation-criteria.md` — Evaluation framework
 
-- **Agents** (`agents/`) — Agent definitions with frontmatter (model, tools, instructions)
-  - `planner.md` — Converts user prompts into product specs (opus)
-  - `generator.md` — Implements sprint contracts (sonnet)
-  - `evaluator.md` — Skeptical code reviewer (opus, no Write tool)
+- **Agents** (`agents/`) — Agent definitions with frontmatter (tools, instructions)
+  - `planner.md` — Converts user prompts into product specs
+  - `generator.md` — Implements sprint contracts
+  - `evaluator.md` — Skeptical code reviewer (no Write tool)
 
 - **Templates** (`templates/`) — Markdown templates for structured artifacts
   - `product-spec.md` — Product specification structure
