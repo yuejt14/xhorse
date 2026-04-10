@@ -9,7 +9,7 @@
       "name": "xhorse",
       "description": "Three-agent development harness with iterative sprint cycles and adversarial evaluation",
       "version": "0.1.0",
-      "source": "."
+      "source": "./"
     }
   ]
 }
