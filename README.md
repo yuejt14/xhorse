@@ -26,12 +26,24 @@ User prompt --> Planner (opus) --> Product Spec --> Sprint Loop:
 
 ## Installation
 
-```bash
-# From local directory
-claude plugin install ./xhorse --scope project
+### From GitHub
 
-# Or use directly during development
+```bash
+# 1. Add the marketplace
+/plugin marketplace add yuejt14/xhorse
+
+# 2. Install the plugin
+/plugin install xhorse@yuejt14-xhorse
+```
+
+### From local directory
+
+```bash
+# For development — loads the plugin for the current session
 claude --plugin-dir ./xhorse
+
+# Or install into a project
+claude plugin install ./xhorse --scope project
 ```
 
 ## Usage
