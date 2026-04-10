@@ -1,0 +1,9 @@
+{
+  "name": "xhorse",
+  "version": "0.1.0",
+  "description": "GAN-inspired three-agent harness for long-running application development. Orchestrates Planner, Generator, and Evaluator agents through iterative sprint cycles with adversarial evaluation.",
+  "author": {
+    "name": "yuejt"
+  },
+  "skills": "./skills/"
+}
