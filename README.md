@@ -111,6 +111,30 @@ Default settings in `.xhorse/config.json` (created per session):
 
 Model fields are omitted from the default config. When absent, agents inherit whatever model you're running Claude Code with. Add a model field to override a specific agent (e.g., `"generator_model": "sonnet"`). If upgrading from an older version, remove any `*_model` fields from existing `.xhorse/config.json` files to use model inheritance.
 
+### Frontend Testing (Optional)
+
+To enable browser-based UI verification using Docker MCP Playwright, add a `frontend_testing` block to `.xhorse/config.json` after session creation:
+
+```json
+{
+  "frontend_testing": {
+    "mcp_server_name": "playwright",
+    "dev_server_cmd": "npm run dev",
+    "dev_server_url": "http://localhost:3000"
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `mcp_server_name` | Name of the Playwright MCP server in your Claude Code settings |
+| `dev_server_cmd` | Command to start the dev server (run in background automatically) |
+| `dev_server_url` | URL to health-check and pass to agents for browser navigation |
+
+**Prerequisites**: You must have a [Playwright MCP server](https://github.com/anthropics/anthropic-quickstarts/tree/main/mcp-playwright) registered in your Claude Code MCP settings under the name matching `mcp_server_name`.
+
+When enabled, the orchestrator starts the dev server before sprints, the generator verifies UI changes in a real browser, and the evaluator independently verifies UI acceptance criteria via Playwright. UI criteria are graded under the existing Correctness category. If the MCP server is not available, xhorse halts with a clear error rather than silently degrading.
+
 ## Key Design Decisions
 
 - **Branch isolation**: All work happens on `xhorse/<session-id>`. Your original branch is never modified.
