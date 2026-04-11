@@ -25,6 +25,14 @@ Run a single sprint cycle of the xhorse harness. This includes contract creation
 4. Verify the xhorse branch exists and is checked out: `git branch --show-current`
 5. Read `.xhorse/spec.md` to understand the full scope.
 6. Read `.xhorse/config.json` for iteration limits and model settings.
+7. **Frontend testing setup** (only if `config.json` contains a `frontend_testing` object):
+   a. Validate that all three fields (`mcp_server_name`, `dev_server_cmd`, `dev_server_url`) are non-empty strings. If any are missing, halt: "Frontend testing config incomplete. Missing: {{list}}. Fix `.xhorse/config.json` or remove `frontend_testing`."
+   b. Probe MCP: call `mcp__{{mcp_server_name}}__browser_navigate` with `"about:blank"`. If unavailable, halt: "MCP server '{{mcp_server_name}}' not available. Register it in your Claude Code settings, or remove `frontend_testing` from config."
+   c. Start the dev server if not already reachable:
+      - Check: `curl -sf -o /dev/null {{dev_server_url}}`
+      - If not reachable: `Bash(command: "{{dev_server_cmd}}", run_in_background: true)` — do NOT use `<cmd> &`. Then poll `curl` every 1s for up to 30 seconds.
+      - If startup fails, halt: "Dev server failed to start. Command: `{{dev_server_cmd}}`, URL: `{{dev_server_url}}`."
+   d. **Important**: Agents must NEVER start or stop the dev server.
 
 ### Step 1: Create Sprint Contract
 
@@ -49,9 +57,9 @@ Agent({
   description: "Implement sprint N",
   prompt: "You are the Generator agent. Read your instructions at agents/generator.md.
 
-TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click).']
 
-Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done."
+Implement Sprint N as defined in .xhorse/current-sprint.md. The full product spec is at .xhorse/spec.md. [If rework: Also read the evaluation feedback at .xhorse/evaluations/sprint-NNN-eval-M.md. Fix ONLY the FAIL items.] Follow project conventions from CLAUDE.md. Commit your work incrementally. Fill in the Self-Assessment section of .xhorse/current-sprint.md when done.[IF frontend_testing configured, append: ' Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See Frontend Testing section in agents/generator.md.']"
   [, model: "<generator_model from config>" — ONLY if generator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
 })
 ```
@@ -79,7 +87,13 @@ Run deterministic checks before spawning the expensive evaluator:
 3. **Lint check** (if `tech_stack.lint_cmd` exists):
    Run it. Lint failures are noted but do NOT block — they become warnings for the evaluator.
 
-If pre-checks pass (or no commands configured), proceed to evaluation.
+4. **Dev server health** (only if `frontend_testing` is configured):
+   ```bash
+   curl -sf -o /dev/null {{dev_server_url}}
+   ```
+   If unreachable: attempt restart with `Bash(command: "{{dev_server_cmd}}", run_in_background: true)`, then poll for up to 30 seconds. If restart fails, halt: "Dev server is down after generation. The generator's changes may have broken the server. Check for errors."
+
+If all applicable pre-checks pass (or no commands configured), proceed to evaluation.
 
 ### Step 4: Evaluate
 
@@ -92,9 +106,9 @@ Agent({
   description: "Evaluate sprint N",
   prompt: "You are the Evaluator agent. Read your instructions at agents/evaluator.md.
 
-TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.
+TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click). These are read-only verification tools and do not violate your no-write constraint.']
 
-Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files."
+Evaluate Sprint N. Read the sprint contract at .xhorse/current-sprint.md (including the generator's self-assessment). Read the product spec at .xhorse/spec.md. Read the evaluation criteria at skills/xhorse/references/evaluation-criteria.md. Review all code changes since commit <start_sha>: run `git diff <start_sha>..HEAD`. Run the project's tests. Produce your evaluation report as structured text output — do NOT write any files.[IF frontend_testing configured, append: ' Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See Frontend Verification section in agents/evaluator.md.']"
   [, model: "<evaluator_model from config>" — ONLY if evaluator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
 })
 ```
@@ -147,3 +161,5 @@ When all sprints are complete (`phase` is `"complete"`):
 2. List all files created/modified across all sprints
 3. Show final test results
 4. Report: "All sprints complete on branch `xhorse/<session-id>`. To merge: `git checkout <original-branch> && git merge xhorse/<session-id>`"
+5. **Frontend testing note** (only if `frontend_testing` was configured):
+   > "The dev server (`{{dev_server_cmd}}`) was started in the background and may still be running. Stop it manually if needed."

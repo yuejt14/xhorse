@@ -63,6 +63,18 @@ Check if `.xhorse/status.json` exists in the current working directory.
    ```
    Note: Model fields (`planner_model`, `generator_model`, `evaluator_model`) are intentionally omitted. When absent, agents inherit whatever model the user is currently running. Users can add these fields to override specific agents (e.g., `"generator_model": "sonnet"`).
 
+   **Optional — Frontend testing**: Users can add a `frontend_testing` block to enable browser-based UI verification via a Playwright MCP server:
+   ```json
+   {
+     "frontend_testing": {
+       "mcp_server_name": "playwright",
+       "dev_server_cmd": "npm run dev",
+       "dev_server_url": "http://localhost:3000"
+     }
+   }
+   ```
+   When present, the orchestrator manages the dev server and grants MCP Playwright tools to agents. The user must have the MCP server registered in their Claude Code settings. Validated at sprint start, not at initialization — users add this after session creation (same pattern as model overrides).
+
 6. Write `.xhorse/status.json` with:
    ```json
    {
@@ -136,7 +148,39 @@ Check if `.xhorse/status.json` exists in the current working directory.
 
 ## Phase 3: Sprint Loop
 
-Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get the sprint decomposition. Loop until all sprints are complete or the user stops.
+Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get the sprint decomposition. Read `.xhorse/config.json` for settings.
+
+**Frontend Testing Setup** (only if `config.json` contains a `frontend_testing` object):
+
+1. **Validate config.** All three fields (`mcp_server_name`, `dev_server_cmd`, `dev_server_url`) must be non-empty strings. If any are missing or empty, halt:
+   > "Frontend testing config incomplete. Missing field(s): {{list}}. Fix `.xhorse/config.json` or remove the `frontend_testing` block to disable."
+
+2. **Probe the MCP server.** Call `mcp__{{mcp_server_name}}__browser_navigate` with URL `"about:blank"`. If the tool is not available or returns an error, halt:
+   > "Frontend testing requires the '{{mcp_server_name}}' MCP server but `mcp__{{mcp_server_name}}__browser_navigate` is not available. Register the MCP server in your Claude Code settings, or remove `frontend_testing` from config."
+
+   Do NOT silently degrade. The user explicitly opted in — missing infrastructure is an error.
+
+3. **Start the dev server** (if not already running):
+   - Check if `dev_server_url` is already reachable:
+     ```bash
+     curl -sf -o /dev/null {{dev_server_url}}
+     ```
+     If reachable: skip startup — the server is already running.
+   - If not reachable: start the dev server in the background:
+     ```
+     Bash(command: "{{dev_server_cmd}}", run_in_background: true)
+     ```
+     **Do NOT use `<cmd> &`** — the process dies when the shell exits. Use the `run_in_background: true` parameter.
+   - Poll until ready (max 30 seconds):
+     ```bash
+     for i in $(seq 1 30); do curl -sf -o /dev/null {{dev_server_url}} && exit 0; sleep 1; done; exit 1
+     ```
+     If this exits non-zero, halt:
+     > "Dev server failed to start within 30 seconds. Command: `{{dev_server_cmd}}`. URL: `{{dev_server_url}}`. Check the command and port, then retry."
+
+**Important**: Agents must NEVER start or stop the dev server. Only the orchestrator manages the dev server lifecycle.
+
+Loop until all sprints are complete or the user stops.
 
 ### 3a: Create Sprint Contract
 
@@ -173,13 +217,14 @@ Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get
 
    Read your full instructions at agents/generator.md.
 
-   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click).']
 
    TASK: Implement Sprint <N>.
    - Product spec: .xhorse/spec.md
    - Sprint contract: .xhorse/current-sprint.md
    [IF REWORK: - Evaluation feedback: .xhorse/evaluations/sprint-<NNN>-eval-<M>.md — Fix ONLY the FAIL items.]
    - Project conventions: CLAUDE.md (if exists)
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See 'Frontend Testing' section in agents/generator.md.]
 
    Implement the sprint scope. Commit incrementally. Run tests. Fill in the Self-Assessment section of .xhorse/current-sprint.md.
 
@@ -210,7 +255,14 @@ Run deterministic checks before the expensive evaluator. Read `tech_stack` from 
 
 3. **Lint** (if `lint_cmd` is set): Run it. Note results as warnings — do NOT block on lint.
 
-If pre-checks pass (or not configured), proceed to 3d.
+4. **Dev server health** (only if `frontend_testing` is configured):
+   ```bash
+   curl -sf -o /dev/null {{dev_server_url}}
+   ```
+   If unreachable: attempt to restart the server using `Bash(command: "{{dev_server_cmd}}", run_in_background: true)`, then poll for up to 30 seconds. If restart also fails, halt:
+   > "Dev server is down after generation and could not be restarted. The generator's changes may have broken the server. Check the application for errors before re-running."
+
+If all applicable pre-checks pass (or not configured), proceed to 3d.
 
 ### 3d: Evaluate
 
@@ -230,7 +282,7 @@ If pre-checks pass (or not configured), proceed to 3d.
 
    Read your full instructions at agents/evaluator.md.
 
-   TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.
+   TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click). These are read-only verification tools and do not violate your no-write constraint.']
 
    TASK: Evaluate Sprint <N>, Iteration <M>.
    - Product spec: .xhorse/spec.md
@@ -238,6 +290,7 @@ If pre-checks pass (or not configured), proceed to 3d.
    - Evaluation criteria: skills/xhorse/references/evaluation-criteria.md
    - Changes since sprint start: run `git diff <start_sha>..HEAD`
    - Test command: <test_cmd>
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See 'Frontend Verification' section in agents/evaluator.md.]
 
    Independently verify each acceptance criterion. Run tests. Check scope drift. Grade each criterion PASS/WARN/FAIL.
 
@@ -329,6 +382,9 @@ Read the verdict from the evaluation.
      ```
      "Or to squash merge: `git merge --squash xhorse/<session-id>`"
      "To discard: `git branch -D xhorse/<session-id>`"
+
+5. **Frontend testing note** (only if `frontend_testing` was configured):
+   > "The dev server (`{{dev_server_cmd}}`) was started in the background and may still be running. Stop it manually if needed (e.g., find the process on the dev server port and kill it)."
 
 ## Orchestrator Rules
 

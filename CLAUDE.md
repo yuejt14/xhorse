@@ -86,3 +86,35 @@ These are Claude Code platform constraints that affect how this plugin works. Th
 **`agents/` auto-discovery**: The `agents/` directory at plugin root is auto-discovered. No explicit `agents` field needed in `plugin.json`.
 
 **Skill priority and shadowing**: Project-level `.claude/skills/` (priority 3) shadows plugin skills (priority 5) when names collide. Never place duplicate skills in both locations.
+
+### Frontend Testing (Optional)
+
+xhorse optionally supports browser-based UI verification using a Docker MCP Playwright server. This is entirely opt-in via configuration.
+
+**How it works**:
+- The user adds a `frontend_testing` block to `.xhorse/config.json` with three required fields: `mcp_server_name`, `dev_server_cmd`, and `dev_server_url`.
+- The orchestrator validates all three fields at sprint start and probes the MCP server. It fails loudly if anything is misconfigured (no silent degradation).
+- The orchestrator starts the dev server before the sprint loop using `Bash(command: "<cmd>", run_in_background: true)` and re-checks its health between generation and evaluation.
+- MCP Playwright tools (e.g., `mcp__<name>__browser_navigate`) are granted to the generator and evaluator via their `TOOL RESTRICTION` blocks in `Agent()` prompts.
+- Agents NEVER manage the dev server lifecycle. Only the orchestrator starts, checks, and restarts it.
+- UI acceptance criteria are graded under the existing Correctness category, not a separate category.
+
+**Config example**:
+```json
+{
+  "frontend_testing": {
+    "mcp_server_name": "playwright",
+    "dev_server_cmd": "npm run dev",
+    "dev_server_url": "http://localhost:3000"
+  }
+}
+```
+
+**Prerequisites**: The user must have a Playwright MCP server registered in their Claude Code MCP settings under the name matching `mcp_server_name`. The plugin cannot configure MCP servers on the user's behalf.
+
+**Design constraints**:
+- No changes to `status.json` schema. Frontend testing state is stateless (HTTP health checks only).
+- No PID tracking, no nohup, no stdout pattern matching for server readiness.
+- Background processes use `run_in_background: true`, never `<cmd> &` (which dies when the Bash shell exits).
+- MCP tool names are fully dynamic: `mcp__{{mcp_server_name}}__<tool>`. Never hardcode a server name prefix.
+- `planner.md`, `sprint-contract.md`, and `evaluation-criteria.md` are not modified.
