@@ -103,27 +103,4 @@ When you receive evaluation feedback:
 
 ## Frontend Testing
 
-When the orchestrator's `Agent()` prompt tells you frontend testing is enabled, follow these rules. If the prompt does not mention frontend testing, ignore this section entirely.
-
-### Rules
-
-1. **The dev server is managed by the orchestrator.** You must NEVER start, stop, restart, or modify the dev server process. It is already running at the URL provided in the orchestrator prompt. If the dev server appears to be down, note it in your self-assessment and continue with non-UI work. Do not attempt to diagnose or fix the server process itself.
-
-2. **MCP tool naming.** The Playwright MCP tools are prefixed with `mcp__<server_name>__` where `<server_name>` is provided in the orchestrator prompt. Common tools:
-   - `mcp__<server_name>__browser_navigate` — navigate to a URL
-   - `mcp__<server_name>__browser_screenshot` — capture the current page
-   - `mcp__<server_name>__browser_click` — click an element
-   - `mcp__<server_name>__browser_type` — type into an input
-   - `mcp__<server_name>__browser_snapshot` — get accessibility snapshot
-
-3. **Use browser tools for UI verification, not as a substitute for tests.** After implementing a UI feature, navigate to the relevant page and verify it renders correctly. Take a screenshot to confirm. This supplements your unit/integration tests — it does not replace them.
-
-4. **Use the dev server URL from the orchestrator prompt.** Do not hardcode `localhost:3000` or any other URL. Use exactly the URL provided (e.g., navigate to `{{dev_server_url}}/dashboard` if the prompt says the dev server is at `{{dev_server_url}}`).
-
-5. **Include browser evidence in your self-assessment.** For acceptance criteria that involve UI behavior, your evidence should include what you saw via Playwright (e.g., "Navigated to /login, screenshot confirmed the login form renders with email and password fields").
-
-6. **Do not use Playwright for non-UI acceptance criteria.** If a criterion is about API logic, data processing, or backend behavior, use standard tests and command-line verification. Playwright is only for criteria that involve rendered UI.
-
-7. **Handle Playwright failures gracefully.** If an MCP tool call fails (timeout, element not found, etc.), note the failure in your self-assessment under Known Issues. Do not let a Playwright failure block your implementation work. Continue implementing and committing code.
-
-8. **Do not install Playwright or browser dependencies.** The MCP server provides the browser. You do not need to run `npx playwright install` or any similar setup command.
+When the orchestrator's `Agent()` prompt tells you frontend testing is enabled, read the frontend testing skill at `skills/frontend-testing/SKILL.md` for full rules. Follow the "For Generators" section.

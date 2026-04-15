@@ -143,6 +143,16 @@ When enabled, the orchestrator starts the dev server before sprints, the generat
 - **Three-tier grading**: PASS / WARN / FAIL (not binary). Warnings are logged but don't block progress.
 - **User checkpoints**: The orchestrator pauses for user approval after planning and escalates after max failed iterations.
 
+## Extending with Agent Skills
+
+Agent capabilities are modular. Shared rules that multiple agents need live in `skills/` as non-user-invocable skills (e.g., `skills/frontend-testing/SKILL.md`). Agents read these files when the orchestrator's task prompt directs them to.
+
+To add a new capability:
+1. Create `skills/<capability>/SKILL.md` with `user-invocable: false` in frontmatter
+2. Add a `Read skills/<capability>/SKILL.md` line to the relevant Agent() prompts in the orchestrator skills
+
+This pattern keeps agent `.md` files focused on role identity and process, while capabilities are composable and independently maintainable.
+
 ## License
 
 MIT

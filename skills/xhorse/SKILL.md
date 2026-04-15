@@ -224,7 +224,7 @@ Loop until all sprints are complete or the user stops.
    - Sprint contract: .xhorse/current-sprint.md
    [IF REWORK: - Evaluation feedback: .xhorse/evaluations/sprint-<NNN>-eval-<M>.md — Fix ONLY the FAIL items.]
    - Project conventions: CLAUDE.md (if exists)
-   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See 'Frontend Testing' section in agents/generator.md.]
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. Read skills/frontend-testing/SKILL.md for frontend testing rules — follow the 'For Generators' section.]
 
    Implement the sprint scope. Commit incrementally. Run tests. Fill in the Self-Assessment section of .xhorse/current-sprint.md.
 
@@ -290,7 +290,7 @@ If all applicable pre-checks pass (or not configured), proceed to 3d.
    - Evaluation criteria: skills/xhorse/references/evaluation-criteria.md
    - Changes since sprint start: run `git diff <start_sha>..HEAD`
    - Test command: <test_cmd>
-   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. See 'Frontend Verification' section in agents/evaluator.md.]
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. Read skills/frontend-testing/SKILL.md for frontend testing rules — follow the 'For Evaluators' section.]
 
    Independently verify each acceptance criterion. Run tests. Check scope drift. Grade each criterion PASS/WARN/FAIL.
 

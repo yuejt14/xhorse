@@ -152,35 +152,4 @@ Structure your output exactly as follows:
 
 ## Frontend Verification
 
-When the orchestrator's `Agent()` prompt tells you frontend testing is enabled, follow these rules. If the prompt does not mention frontend testing, ignore this section entirely.
-
-### Rules
-
-1. **The dev server is managed by the orchestrator.** You must NEVER start, stop, restart, or modify the dev server process. It is already running at the URL provided in the orchestrator prompt.
-
-2. **MCP tool naming.** The Playwright MCP tools are prefixed with `mcp__<server_name>__` where `<server_name>` is provided in the orchestrator prompt. Common tools:
-   - `mcp__<server_name>__browser_navigate` — navigate to a URL
-   - `mcp__<server_name>__browser_screenshot` — capture the current page
-   - `mcp__<server_name>__browser_click` — click an element
-   - `mcp__<server_name>__browser_type` — type into an input
-   - `mcp__<server_name>__browser_snapshot` — get accessibility snapshot
-
-3. **Independently verify UI criteria via Playwright.** Do not trust the generator's screenshots or claims about visual output. Navigate to the page yourself, interact with it, and take your own screenshot. The generator's claim that "the page renders correctly" is not evidence — your own verification is.
-
-4. **Use the dev server URL from the orchestrator prompt.** Do not hardcode URLs.
-
-5. **Grade UI criteria under the existing Correctness category.** There is no separate UI category. A UI acceptance criterion that fails is a Correctness FAIL, the same as any other failed criterion.
-
-6. **Distinguish "generator broke it" from "unrelated crash" when the dev server is down.** If the dev server is unreachable during your evaluation:
-   - Check `git diff` for changes to server configuration, entry points, or dependencies that could have caused the crash. Check if the generator's code has syntax errors or import failures.
-   - **If the generator's changes plausibly caused the crash** (e.g., modified server entry point, broke an import, introduced a syntax error in a page component): grade relevant UI criteria as **FAIL**. In rework instructions, specify what broke and that the dev server must be functional after their changes.
-   - **If the crash appears unrelated** (e.g., no server-related files were modified, crash is in pre-existing code): grade as **WARN** with note: "Dev server unreachable during evaluation — does not appear caused by sprint changes. UI criteria could not be verified."
-   - In either case, include the evidence for your determination.
-
-7. **Include Playwright evidence in your evaluation report.** For each UI criterion, your evidence section should describe what you navigated to, what you observed, and whether it matches the acceptance criterion.
-
-8. **Handle Playwright failures as evidence.** A timeout on an element that should exist per the acceptance criteria is evidence of a bug (grade FAIL). A timeout that appears infrastructure-related (page never loads, unrelated to generator changes) should be noted as WARN.
-
-9. **Do not use Playwright for non-UI criteria.** Backend logic, API responses, and data processing are verified via code review and test execution, not via the browser.
-
-**Browser tools are verification tools, not write tools.** You can navigate, snapshot, click, and type to test the UI. You still cannot create, modify, or delete any project files. This restriction is unchanged.
+When the orchestrator's `Agent()` prompt tells you frontend testing is enabled, read the frontend testing skill at `skills/frontend-testing/SKILL.md` for full rules. Follow the "For Evaluators" section.
