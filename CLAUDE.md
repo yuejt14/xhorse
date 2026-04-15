@@ -4,7 +4,7 @@
 
 ### Overview
 
-A Claude Code plugin that implements a GAN-inspired three-agent harness for long-running application development. Orchestrates Planner, Generator, and Evaluator agents through iterative sprint cycles with adversarial evaluation to produce higher-quality output than single-agent passes.
+A Claude Code plugin that implements a GAN-inspired three-agent harness for long-running application development. Orchestrates Planner, Generator, and Evaluator agents through iterative development cycles with adversarial evaluation to produce higher-quality output than single-agent passes. Supports two modes: **continuous** (single generation pass + final evaluation, default) and **sprints** (iterative sprint cycles with per-sprint evaluation).
 
 ### Architecture
 
@@ -19,7 +19,7 @@ The plugin consists of:
 
 - **Agents** (`agents/`) — Agent definitions with frontmatter (tools, instructions)
   - `planner.md` — Converts user prompts into product specs
-  - `generator.md` — Implements sprint contracts
+  - `generator.md` — Implements specifications (sprint contracts or full spec)
   - `evaluator.md` — Skeptical code reviewer (no Write tool)
 
 - **Templates** (`templates/`) — Markdown templates for structured artifacts
@@ -28,9 +28,11 @@ The plugin consists of:
   - `evaluation-report.md` — Evaluation output structure
 
 - **Runtime artifacts** (`.xhorse/` in target project, not in plugin)
-  - `status.json` — State machine tracking phase, sprints, iterations
-  - `config.json` — User-tunable settings (models, iteration limits)
-  - `spec.md`, `current-sprint.md`, `sprints/`, `evaluations/`
+  - `status.json` — State machine tracking phase, mode, iterations
+  - `config.json` — User-tunable settings (mode, models, iteration limits)
+  - `spec.md`, `evaluations/`
+  - Sprint mode only: `current-sprint.md`, `sprints/`
+  - Continuous mode only: `self-assessment.md`
 
 ### Key Design Principles
 
@@ -41,6 +43,16 @@ The plugin consists of:
 5. **Branch isolation** — All work on `xhorse/<session>` branch, auto-merged back to original branch on completion
 6. **Three-tier grading** — PASS / WARN / FAIL (not binary)
 7. **Ratchet scoring** — Revert if quality drops between iterations
+
+### Modes
+
+xhorse supports two execution modes, set via `mode` in `.xhorse/config.json`:
+
+- **`"continuous"` (default)**: The generator implements the full spec in a single pass. The evaluator runs once at the end. Rework applies to the whole implementation. Best for Opus 4.6+ where sprint decomposition is unnecessary overhead. Follows Anthropic's harness design guidance: "Sprint-level decomposition was removed, allowing continuous generation."
+
+- **`"sprints"`**: Work is decomposed into ordered sprints, each with 3-7 acceptance criteria. The generator implements one sprint at a time, the evaluator grades per-sprint. Rework is scoped to the failing sprint. Better for very large projects (30+ criteria) or when incremental validation is critical.
+
+The `mode` field in `status.json` is authoritative after initialization (read from `config.json` once at init, persisted to `status.json`). Mid-session mode switching is supported as an escalation option when continuous mode hits max iterations.
 
 ### Project Structure
 
@@ -99,8 +111,8 @@ xhorse optionally supports browser-based UI verification using a Docker MCP Play
 
 **How it works**:
 - The user adds a `frontend_testing` block to `.xhorse/config.json` with three required fields: `mcp_server_name`, `dev_server_cmd`, and `dev_server_url`.
-- The orchestrator validates all three fields at sprint start and probes the MCP server. It fails loudly if anything is misconfigured (no silent degradation).
-- The orchestrator starts the dev server before the sprint loop using `Bash(command: "<cmd>", run_in_background: true)` and re-checks its health between generation and evaluation.
+- The orchestrator validates all three fields at the start of Phase 3 (before either sprint loop or continuous generation) and probes the MCP server. It fails loudly if anything is misconfigured (no silent degradation).
+- The orchestrator starts the dev server before generation using `Bash(command: "<cmd>", run_in_background: true)` and re-checks its health between generation and evaluation.
 - MCP Playwright tools (e.g., `mcp__<name>__browser_navigate`) are granted to the generator and evaluator via their `TOOL RESTRICTION` blocks in `Agent()` prompts. Detailed usage rules are in `skills/frontend-testing/SKILL.md`.
 - Agents NEVER manage the dev server lifecycle. Only the orchestrator starts, checks, and restarts it.
 - UI acceptance criteria are graded under the existing Correctness category, not a separate category.
@@ -123,5 +135,5 @@ xhorse optionally supports browser-based UI verification using a Docker MCP Play
 - No PID tracking, no nohup, no stdout pattern matching for server readiness.
 - Background processes use `run_in_background: true`, never `<cmd> &` (which dies when the Bash shell exits).
 - MCP tool names are fully dynamic: `mcp__{{mcp_server_name}}__<tool>`. Never hardcode a server name prefix.
-- `planner.md`, `sprint-contract.md`, and `evaluation-criteria.md` are not modified.
+- `planner.md`, `sprint-contract.md`, and `evaluation-criteria.md` are not modified by the frontend testing feature.
 - Frontend testing rules for agents are centralized in `skills/frontend-testing/SKILL.md` with role-specific sections. Agent `.md` files contain a pointer to this skill, not the full rules.

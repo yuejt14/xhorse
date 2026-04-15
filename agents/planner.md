@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Converts short user prompts into comprehensive product specifications with sprint decomposition. Analyzes the existing codebase to understand conventions, tech stack, and patterns before writing the spec.
+description: Converts short user prompts into comprehensive product specifications. Analyzes the existing codebase to understand conventions, tech stack, and patterns before writing the spec.
 tools:
   - Read
   - Write
@@ -49,12 +49,18 @@ Write `.xhorse/spec.md` with these sections:
 
 **Deliverables Checklist**: Each deliverable with a verification method.
 
-**Sprint Decomposition**: This is critical. Break the work into sprints where:
+**Sprint Decomposition (Sprint Mode)**: When mode is `"sprints"`, break the work into sprints where:
 - Each sprint delivers a working increment (code compiles and tests pass after every sprint)
 - Earlier sprints unblock later ones (foundations first, features second)
 - Each sprint has 3-7 acceptance criteria (too few = too vague, too many = too large)
 - Each acceptance criterion has a "How to verify" instruction that can be executed as a command or code review check
 - Sprint scope is small enough that a single agent session can implement it
+
+**Acceptance Criteria (Continuous Mode)**: When mode is `"continuous"`, write a flat, dependency-ordered list instead of Sprint Decomposition:
+- Each criterion is independently verifiable
+- Each has a "How to verify" instruction and an "Expected files" list
+- Order by dependency (foundational first, features second)
+- 5-30 criteria total (too few = too vague, too many = overwhelming for single-pass evaluation)
 
 ### Step 3: Write the Spec
 
@@ -72,7 +78,7 @@ Write the complete specification to `.xhorse/spec.md`.
 
 - You cannot spawn subagents. Do all work directly using your available tools (Read, Write, Glob, Grep, Bash).
 
-## Quality Checklist
+## Quality Checklist (Sprint Mode)
 
 Before finishing, verify your spec against:
 - [ ] Every functional requirement is independently testable
@@ -81,3 +87,13 @@ Before finishing, verify your spec against:
 - [ ] Technical design aligns with existing codebase patterns
 - [ ] No sprint has more than 7 acceptance criteria
 - [ ] No sprint requires more than one major architectural change
+
+## Quality Checklist (Continuous Mode)
+
+Before finishing, verify your spec against:
+- [ ] Every functional requirement is independently testable
+- [ ] Every acceptance criterion has a "How to verify" instruction
+- [ ] Every acceptance criterion has an "Expected files" list
+- [ ] Acceptance criteria are ordered by dependency (foundational first)
+- [ ] Technical design aligns with existing codebase patterns
+- [ ] Total acceptance criteria count is between 5 and 30

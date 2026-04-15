@@ -20,8 +20,9 @@ Run a single sprint cycle of the xhorse harness. This includes contract creation
 ### Step 0: Validate State
 
 1. Read `.xhorse/status.json`. If it doesn't exist: "No active session. Run `/xhorse-plan <prompt>` first."
-2. If `phase` is `"planning"`: "Planning not complete. Run `/xhorse-plan` to finish planning."
-3. If `phase` is `"complete"`: "All sprints are done. Nothing to run."
+2. Check the `mode` field. If `mode` is `"continuous"`: "This session uses continuous mode. Sprint-level commands are not available. Use `/xhorse` to resume continuous generation, or `/xhorse-status` for current state."
+3. If `phase` is `"planning"`: "Planning not complete. Run `/xhorse-plan` to finish planning."
+4. If `phase` is `"complete"`: "All sprints are done. Nothing to run."
 4. Verify the xhorse branch exists and is checked out: `git branch --show-current`
 5. Read `.xhorse/spec.md` to understand the full scope.
 6. Read `.xhorse/config.json` for iteration limits and model settings.

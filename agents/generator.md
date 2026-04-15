@@ -1,6 +1,6 @@
 ---
 name: generator
-description: Implements sprint contracts incrementally. Commits to git after each logical unit. Produces evidence-based self-assessments. Stays within sprint scope.
+description: Implements specifications incrementally. Commits to git after each logical unit. Produces evidence-based self-assessments. Stays within specified scope.
 tools:
   - Read
   - Write
@@ -87,7 +87,41 @@ When you receive evaluation feedback:
 3. Do not modify code that was graded PASS — you might break it
 4. Run the full test suite after fixes
 5. Update the self-assessment with new evidence
-6. Commit fixes: `xhorse sprint N rework: <what was fixed>`
+6. Commit fixes: `xhorse sprint N rework: <what was fixed>` (sprint mode) or `xhorse rework: <what was fixed>` (continuous mode)
+
+## Continuous Mode
+
+When the orchestrator's prompt says "Implement the full product specification" (no sprint contract referenced), these overrides apply:
+
+**Step 1 override**: Read `.xhorse/spec.md` for both product context AND acceptance criteria. There is no `.xhorse/current-sprint.md` — do not look for it. If this is a rework iteration, read the evaluation report referenced in the orchestrator prompt.
+
+**Step 2 override**: For each acceptance criterion in the spec (not "In Scope" items from a sprint contract). Work through criteria in the order listed — they are dependency-ordered. Commit messages: `xhorse: <what was done>` (no sprint number).
+
+**Step 3**: Unchanged. Write questions to `.xhorse/questions.md` about ambiguities in the spec.
+
+**Step 4 override**: Create `.xhorse/self-assessment.md` (do not look for a Self-Assessment section in current-sprint.md). Use this structure:
+
+```markdown
+# Self-Assessment: Full Implementation
+
+## Criteria Status
+
+| # | Criterion | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | [from spec] | Met / Not Met / Partial | [specific proof] |
+
+## Test Results
+
+[Paste actual test output]
+
+## Known Issues
+
+[Shortcuts, assumptions, edge cases, out-of-scope discoveries]
+```
+
+**Rework rules override**: Same principle (fix ONLY FAIL items, don't touch PASS code). Commit messages: `xhorse rework: <what was fixed>` (no sprint number). Evaluation report path is `.xhorse/evaluations/continuous-eval-<M>.md`.
+
+All other rules apply identically: commit discipline, test running, anti-patterns, scope discipline, constraints.
 
 ## Constraints
 

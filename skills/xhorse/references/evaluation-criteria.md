@@ -5,13 +5,13 @@ This document defines the evaluation framework used by the evaluator agent. Each
 ## Grading Scale
 
 - **PASS**: Criterion fully met. No issues found.
-- **WARN**: Criterion met but with minor concerns. Does not block sprint. Logged for tracking.
-- **FAIL**: Criterion not met. Sprint cannot pass. Rework required.
+- **WARN**: Criterion met but with minor concerns. Does not block the implementation. Logged for tracking.
+- **FAIL**: Criterion not met. Implementation cannot pass. Rework required.
 
 ## Verdict Rules
 
 - **PASS**: All criteria are PASS or WARN with no FAIL items.
-- **PASS_WITH_WARNINGS**: Same as PASS but warnings exist. Sprint proceeds, warnings are logged in status.json.
+- **PASS_WITH_WARNINGS**: Same as PASS but warnings exist. Implementation proceeds, warnings are logged in status.json.
 - **FAIL**: Any criterion is FAIL. Rework required. Provide specific rework instructions per FAIL item.
 
 ---
@@ -19,13 +19,13 @@ This document defines the evaluation framework used by the evaluator agent. Each
 ## Category 1: Correctness
 
 **What to check**:
-- Logic matches the acceptance criteria in the sprint contract
+- Logic matches the acceptance criteria
 - No regressions — existing tests still pass
 - Data transformations produce expected output
 - Control flow handles all specified scenarios
 
 **Hard FAIL conditions**:
-- Any acceptance criterion from the sprint contract is not met
+- Any acceptance criterion is not met
 - Existing tests that previously passed now fail
 - Core logic produces incorrect output for specified inputs
 
@@ -105,10 +105,10 @@ This document defines the evaluation framework used by the evaluator agent. Each
 - No significant DRY violations (copy-pasted blocks)
 - Code is readable without excessive comments
 - No dead code introduced
-- No scope creep — changes are within sprint contract's expected files
+- No scope creep — changes are within the expected files list
 
 **Hard FAIL conditions**:
-- Changed files outside the sprint contract's "Expected Files" without justification
+- Changed files outside the "Expected files" list without justification
 - Large copy-pasted code blocks (3+ similar blocks)
 - Introduced code that breaks existing patterns without reason
 
@@ -119,10 +119,10 @@ This document defines the evaluation framework used by the evaluator agent. Each
 
 **Scope drift detection**:
 1. Run `git diff --name-only` to get changed files
-2. Compare against the sprint contract's "Expected Files" list
+2. Compare against the "Expected files" list
 3. If files were changed that aren't in the expected set:
    - If they're clearly necessary (e.g., config files, package.json for new deps): WARN
-   - If they're unrelated to the sprint scope: FAIL
+   - If they're unrelated to the implementation scope: FAIL
 
 **Lint/type commands** (run if available):
 - Node.js: `npx eslint .` or `npx tsc --noEmit`
@@ -156,5 +156,5 @@ If `status.json` already has `tech_stack` populated, use those commands. Otherwi
 2. **Skepticism**: Assume incorrect until proven otherwise. If in doubt, it's a WARN or FAIL, not a PASS.
 3. **No self-talk**: If you identify a real issue, do not rationalize it away. It stays an issue.
 4. **Specificity**: Every FAIL must include: the file path, what's wrong, and what the expected behavior is.
-5. **Scope discipline**: Grade only what the sprint contract asks for. Don't fail a sprint for pre-existing issues.
+5. **Scope discipline**: Grade only what the acceptance criteria ask for. Don't fail for pre-existing issues in the codebase.
 6. **Evidence-based**: Every grade must cite evidence — a test result, a code snippet, a command output.

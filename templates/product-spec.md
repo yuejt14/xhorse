@@ -56,9 +56,10 @@
 - [ ] **Deliverable 2**: 
   - Verification: 
 
-## Sprint Decomposition
+## Sprint Decomposition (Sprint Mode)
 
-<!-- Ordered list of sprints. Earlier sprints unblock later ones. Each sprint has a clear scope and acceptance criteria. -->
+<!-- Ordered list of sprints. Earlier sprints unblock later ones. Each sprint has a clear scope and acceptance criteria.
+     Use this section when mode is "sprints". -->
 
 ### Sprint 1: {{SPRINT_GOAL}}
 
@@ -77,3 +78,12 @@
 **Acceptance Criteria**:
 1. 
    - How to verify: 
+
+## Acceptance Criteria (Continuous Mode)
+
+<!-- Flat, dependency-ordered list. Each criterion is independently verifiable.
+     Use this section instead of Sprint Decomposition when mode is "continuous". -->
+
+1. **Criterion**: {{description}}
+   - How to verify: {{command or review check}}
+   - Expected files: {{files created/modified}}

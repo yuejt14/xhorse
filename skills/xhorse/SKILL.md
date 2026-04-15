@@ -1,6 +1,6 @@
 ---
 name: xhorse
-description: Build complex applications using a three-agent harness (Planner, Generator, Evaluator) with iterative sprint cycles and adversarial evaluation. Use for full apps, large features, or multi-sprint development.
+description: Build complex applications using a three-agent harness (Planner, Generator, Evaluator) with iterative development cycles and adversarial evaluation. Use for full apps, large features, or multi-step development.
 argument-hint: "[description of what to build]"
 allowed-tools:
   - Read
@@ -13,7 +13,7 @@ allowed-tools:
 
 # /xhorse — Three-Agent Development Harness
 
-You are the orchestrator of the xhorse harness. You coordinate three agents (Planner, Generator, Evaluator) through iterative sprint cycles to build applications with higher quality than single-agent passes.
+You are the orchestrator of the xhorse harness. You coordinate three agents (Planner, Generator, Evaluator) through iterative development cycles to build applications with higher quality than single-agent passes.
 
 **You own the loop.** Agents do work. You make decisions. You never delegate decision-making to an agent.
 
@@ -21,9 +21,10 @@ You are the orchestrator of the xhorse harness. You coordinate three agents (Pla
 
 Check if `.xhorse/status.json` exists in the current working directory.
 
-**If it exists**: Read it. Check the `phase` field.
+**If it exists**: Read it. Check the `phase` and `mode` fields. If `mode` is absent (legacy session), treat as `"sprints"`.
 - If `phase` is `"complete"`: Report "Previous session is complete. Changes were merged to `{{base_branch}}`. Delete `.xhorse/` to start a new one."
-- If `phase` is `"planning"` or `"sprinting"`: Ask the user: "Found an existing xhorse session (phase: {{phase}}, sprint: {{current_sprint.number}}). Resume this session or start fresh?" If resume, checkout the xhorse branch and skip to the appropriate phase. If fresh, confirm deletion of `.xhorse/` then proceed to Phase 1.
+- If `phase` is `"planning"` or `"sprinting"`: Ask the user: "Found an existing xhorse session (mode: {{mode}}, phase: {{phase}}, sprint: {{current_sprint.number}}). Resume this session or start fresh?" If resume, checkout the xhorse branch and skip to the appropriate phase. If fresh, confirm deletion of `.xhorse/` then proceed to Phase 1.
+- If `phase` is `"generating"`: Ask the user: "Found an existing xhorse session in continuous generation mode (iteration: {{generation.iteration}}). Resume this session or start fresh?" If resume, checkout the xhorse branch and skip to Phase 3C — go to 3Cb (rework path if iteration > 0 and evaluation report exists, otherwise first attempt). If fresh, confirm deletion of `.xhorse/` then proceed to Phase 1.
 
 **If it does not exist**: Proceed to Phase 1.
 
@@ -50,19 +51,19 @@ Check if `.xhorse/status.json` exists in the current working directory.
    git rev-parse HEAD
    ```
 
-4. Create the directory structure:
-   ```bash
-   mkdir -p .xhorse/sprints .xhorse/evaluations
-   ```
-
-5. Write `.xhorse/config.json` with defaults:
+4. Write `.xhorse/config.json` with defaults (or merge with existing if user pre-created it):
    ```json
    {
+     "mode": "continuous",
+     "max_iterations": 3,
      "max_iterations_per_sprint": 3,
      "max_sprints": 10
    }
    ```
-   Note: Model fields (`planner_model`, `generator_model`, `evaluator_model`) are intentionally omitted. When absent, agents inherit whatever model the user is currently running. Users can add these fields to override specific agents (e.g., `"generator_model": "sonnet"`).
+   - `mode`: `"continuous"` (default) — single generation pass with one final evaluation. Or `"sprints"` — iterative sprint cycles with per-sprint evaluation.
+   - `max_iterations`: rework cap in continuous mode.
+   - `max_iterations_per_sprint` / `max_sprints`: used only in sprint mode.
+   - Note: Model fields (`planner_model`, `generator_model`, `evaluator_model`) are intentionally omitted. When absent, agents inherit whatever model the user is currently running. Users can add these fields to override specific agents (e.g., `"generator_model": "sonnet"`).
 
    **Optional — Frontend testing**: Users can add a `frontend_testing` block to enable browser-based UI verification via a Playwright MCP server:
    ```json
@@ -74,9 +75,15 @@ Check if `.xhorse/status.json` exists in the current working directory.
      }
    }
    ```
-   When present, the orchestrator manages the dev server and grants MCP Playwright tools to agents. The user must have the MCP server registered in their Claude Code settings. Validated at sprint start, not at initialization — users add this after session creation (same pattern as model overrides).
+   When present, the orchestrator manages the dev server and grants MCP Playwright tools to agents. The user must have the MCP server registered in their Claude Code settings. Validated at generation/sprint start, not at initialization — users add this after session creation (same pattern as model overrides).
 
-6. Write `.xhorse/status.json` with:
+5. Create the directory structure based on `mode` from config.json:
+   - If `mode` is `"continuous"`: `mkdir -p .xhorse/evaluations`
+   - If `mode` is `"sprints"`: `mkdir -p .xhorse/sprints .xhorse/evaluations`
+
+6. Write `.xhorse/status.json`. The `mode` field is the authoritative source for which flow to follow — it is read from `config.json` at init and persisted here. Legacy sessions without a `mode` field default to `"sprints"`.
+
+   **If `mode` is `"continuous"`**:
    ```json
    {
      "session_id": "<id>",
@@ -84,6 +91,33 @@ Check if `.xhorse/status.json` exists in the current working directory.
      "base_branch": "<original-branch-name>",
      "base_sha": "<sha>",
      "phase": "planning",
+     "mode": "continuous",
+     "user_prompt": "$ARGUMENTS",
+     "tech_stack": {
+       "detected": [...],
+       "test_cmd": "...",
+       "lint_cmd": "...",
+       "build_cmd": "..."
+     },
+     "config": { ... },
+     "generation": {
+       "start_sha": null,
+       "iteration": 0,
+       "best_score": null,
+       "best_sha": null
+     }
+   }
+   ```
+
+   **If `mode` is `"sprints"`**:
+   ```json
+   {
+     "session_id": "<id>",
+     "branch": "xhorse/<id>",
+     "base_branch": "<original-branch-name>",
+     "base_sha": "<sha>",
+     "phase": "planning",
+     "mode": "sprints",
      "user_prompt": "$ARGUMENTS",
      "tech_stack": {
        "detected": [...],
@@ -106,7 +140,34 @@ Check if `.xhorse/status.json` exists in the current working directory.
 
 ## Phase 2: Planning
 
-1. Spawn the **planner agent**:
+1. Read `mode` from `status.json`.
+
+2. Spawn the **planner agent**. The prompt varies by mode:
+
+   **If `mode` is `"continuous"`**:
+   ```
+   Agent({
+     description: "Generate product specification",
+     prompt: "You are the Planner agent for the xhorse harness.
+
+   Read your full instructions at agents/planner.md. The mode is 'continuous' — follow the Continuous Mode quality checklist.
+
+   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.
+
+   USER REQUEST: $ARGUMENTS
+
+   TASK:
+   1. Analyze the existing codebase — read CLAUDE.md, check the directory structure, understand existing patterns and tech stack.
+   2. Write a comprehensive product specification to .xhorse/spec.md
+   3. The spec MUST include an Acceptance Criteria section — a flat, numbered list of all criteria, each with a 'How to verify' instruction and an 'Expected files' list. Do NOT decompose into sprints. Order criteria by dependency (foundational first).
+   4. Use the Continuous Mode section of templates/product-spec.md as a guide.
+
+   Return a summary under 300 words: what the spec covers, number of acceptance criteria, key decisions."
+     [, model: "<planner_model from config>" — ONLY if planner_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
+   })
+   ```
+
+   **If `mode` is `"sprints"`**:
    ```
    Agent({
      description: "Generate product specification",
@@ -129,30 +190,36 @@ Check if `.xhorse/status.json` exists in the current working directory.
    })
    ```
 
-2. After the planner returns, read `.xhorse/spec.md`.
+3. After the planner returns, read `.xhorse/spec.md`.
 
-3. **User checkpoint**: Present the spec summary to the user. Show:
+4. **User checkpoint**: Present the spec summary to the user. Show:
    - Product overview
-   - Number of sprints planned
-   - Sprint goals (one line each)
+   - **Continuous mode**: Number of acceptance criteria. If criteria count > 30, append warning: "This spec has {{N}} acceptance criteria, which is above the recommended maximum of 30 for continuous mode. Consider switching to sprint mode (`\"mode\": \"sprints\"` in config) for projects of this complexity."
+   - **Sprint mode**: Number of sprints planned, sprint goals (one line each)
    - Key technical decisions
 
    Ask: "Review the specification. Approve to proceed, or describe what to change."
 
-4. If the user requests changes: re-spawn the planner with modification instructions appended to the original prompt. Repeat until approved.
+5. If the user requests changes: re-spawn the planner with modification instructions appended to the original prompt. Repeat until approved.
 
-5. Once approved:
+6. Once approved:
    ```bash
    git add .xhorse/spec.md
    git commit -m "xhorse: product specification approved"
    ```
-   Update `status.json`: set `phase` to `"sprinting"`, set `current_sprint` to `{"number": 1, "iteration": 0, "start_sha": null, "best_score": null, "best_sha": null}`.
 
-## Phase 3: Sprint Loop
+   Update `status.json` based on mode:
+   - **Continuous**: set `phase` to `"generating"`.
+   - **Sprints**: set `phase` to `"sprinting"`, set `current_sprint` to `{"number": 1, "iteration": 0, "start_sha": null, "best_score": null, "best_sha": null}`.
 
-Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get the sprint decomposition. Read `.xhorse/config.json` for settings.
+## Phase 3: Implementation
 
-**Frontend Testing Setup** (only if `config.json` contains a `frontend_testing` object):
+Read `.xhorse/status.json`. Check the `mode` field.
+
+- If `mode` is `"sprints"`: proceed to **Phase 3S (Sprint Loop)**.
+- If `mode` is `"continuous"`: proceed to **Phase 3C (Continuous Generation)**.
+
+**Frontend Testing Setup** (mode-independent — runs before either Phase 3S or 3C, only if `config.json` contains a `frontend_testing` object):
 
 1. **Validate config.** All three fields (`mcp_server_name`, `dev_server_cmd`, `dev_server_url`) must be non-empty strings. If any are missing or empty, halt:
    > "Frontend testing config incomplete. Missing field(s): {{list}}. Fix `.xhorse/config.json` or remove the `frontend_testing` block to disable."
@@ -182,9 +249,15 @@ Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get
 
 **Important**: Agents must NEVER start or stop the dev server. Only the orchestrator manages the dev server lifecycle.
 
+---
+
+## Phase 3S: Sprint Loop
+
+Read `status.json` to get `current_sprint.number`. Read `.xhorse/spec.md` to get the sprint decomposition. Read `.xhorse/config.json` for settings.
+
 Loop until all sprints are complete or the user stops.
 
-### 3a: Create Sprint Contract
+### 3Sa: Create Sprint Contract
 
 1. Find the current sprint in the spec's Sprint Decomposition section.
 2. If no more sprints exist in the spec: go to Phase 4 (Completion).
@@ -205,7 +278,7 @@ Loop until all sprints are complete or the user stops.
    git commit -m "xhorse sprint <N>: contract"
    ```
 
-### 3b: Generate
+### 3Sb: Generate
 
 1. Determine if this is a first attempt or a rework iteration:
    - First attempt (iteration 0): no evaluation feedback
@@ -239,7 +312,7 @@ Loop until all sprints are complete or the user stops.
    - Check if `.xhorse/questions.md` exists and has new content. If so, present questions to the user. Wait for answers. If critical, pass answers back to generator (re-spawn) or note them for the evaluator.
    - Read `.xhorse/current-sprint.md` to confirm self-assessment was filled in.
 
-### 3c: Pre-Check Gate
+### 3Sc: Pre-Check Gate
 
 Run deterministic checks before the expensive evaluator. Read `tech_stack` from `status.json`.
 
@@ -247,13 +320,13 @@ Run deterministic checks before the expensive evaluator. Read `tech_stack` from 
    ```bash
    <build_cmd>
    ```
-   If fails: increment `current_sprint.iteration`. If iteration < max, go back to 3b with the build error. If iteration >= max, go to 3e (user escalation).
+   If fails: increment `current_sprint.iteration`. If iteration < max, go back to 3Sb with the build error. If iteration >= max, go to 3Se (user escalation).
 
 2. **Tests** (if `test_cmd` is set):
    ```bash
    <test_cmd>
    ```
-   If fails: increment `current_sprint.iteration`. If iteration < max, go back to 3b with test failures. If iteration >= max, go to 3e (user escalation).
+   If fails: increment `current_sprint.iteration`. If iteration < max, go back to 3Sb with test failures. If iteration >= max, go to 3Se (user escalation).
 
 3. **Lint** (if `lint_cmd` is set): Run it. Note results as warnings — do NOT block on lint.
 
@@ -264,9 +337,9 @@ Run deterministic checks before the expensive evaluator. Read `tech_stack` from 
    If unreachable: attempt to restart the server using `Bash(command: "{{dev_server_cmd}}", run_in_background: true)`, then poll for up to 30 seconds. If restart also fails, halt:
    > "Dev server is down after generation and could not be restarted. The generator's changes may have broken the server. Check the application for errors before re-running."
 
-If all applicable pre-checks pass (or not configured), proceed to 3d.
+If all applicable pre-checks pass (or not configured), proceed to 3Sd.
 
-### 3d: Evaluate
+### 3Sd: Evaluate
 
 1. Get the diff scope:
    ```bash
@@ -312,7 +385,7 @@ If all applicable pre-checks pass (or not configured), proceed to 3d.
      git commit -m "xhorse sprint <N> eval <M>: <verdict>"
      ```
 
-### 3e: Decision Gate
+### 3Se: Decision Gate
 
 Read the verdict from the evaluation.
 
@@ -330,7 +403,7 @@ Read the verdict from the evaluation.
    ```
 4. Report sprint result to user. Show warnings if any.
 5. If phase is `"complete"`: go to Phase 4.
-6. Otherwise: loop back to 3a for the next sprint.
+6. Otherwise: loop back to 3Sa for the next sprint.
 
 **FAIL (iteration < max_iterations_per_sprint)**:
 1. Increment `current_sprint.iteration`
@@ -343,7 +416,7 @@ Read the verdict from the evaluation.
      - Update `best_sha` to current HEAD
 3. Update `status.json`
 4. Report: "Sprint {{N}} FAIL (iteration {{M}}/{{max}}). Sending feedback to generator..."
-5. Loop back to 3b with the evaluation report path.
+5. Loop back to 3Sb with the evaluation report path.
 
 **FAIL (iteration >= max_iterations_per_sprint)**:
 1. Report to the user:
@@ -356,30 +429,212 @@ Read the verdict from the evaluation.
    - "Skip this sprint and continue to the next"
    - "Stop the harness"
 3. Handle:
-   - More iterations: update max, loop back to 3b
-   - Adjust: let user edit, loop back to 3b with iteration reset
+   - More iterations: update max, loop back to 3Sb
+   - Adjust: let user edit, loop back to 3Sb with iteration reset
    - Skip: archive as skipped, move to next sprint
    - Stop: update phase to "stopped", report current state
 
-## Phase 4: Completion
+---
 
-1. Read all completed sprints from `status.json`.
-2. Get full diff from base:
+## Phase 3C: Continuous Generation
+
+Read `.xhorse/spec.md` to get the acceptance criteria. Read `.xhorse/config.json` for `max_iterations`.
+
+### 3Ca: Record Start State
+
+1. Record the starting SHA:
    ```bash
-   git diff <base_sha>..HEAD --stat
+   git rev-parse HEAD
    ```
-3. Run final test suite:
+2. Update `status.json`: set `generation.start_sha` to this SHA.
+3. Commit:
+   ```bash
+   git add .xhorse/
+   git commit -m "xhorse: begin continuous generation"
+   ```
+
+### 3Cb: Generate
+
+1. Determine if this is a first attempt or a rework iteration:
+   - First attempt (iteration 0): no evaluation feedback
+   - Rework (iteration > 0): include path to latest evaluation report
+
+2. Spawn the **generator agent**:
+   ```
+   Agent({
+     description: "Implement full specification",
+     prompt: "You are the Generator agent for the xhorse harness.
+
+   Read your full instructions at agents/generator.md — follow the Continuous Mode section.
+   The Continuous Mode section overrides Steps 1, 2, and 4. There is no sprint contract in this mode.
+
+   TOOL RESTRICTION: You have access to Read, Write, Glob, Grep, and Bash. You cannot spawn subagents.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click).']
+
+   TASK: Implement the full product specification.
+   - Product spec: .xhorse/spec.md (contains all acceptance criteria)
+   [IF REWORK: - Evaluation feedback: .xhorse/evaluations/continuous-eval-<M>.md — Fix ONLY the FAIL items. Do not modify code that already passed.]
+   - Project conventions: CLAUDE.md (if exists)
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. Read skills/frontend-testing/SKILL.md for frontend testing rules — follow the 'For Generators' section.]
+
+   Implement the entire specification. Work through acceptance criteria in dependency order.
+   Commit incrementally after each logical unit. Run tests periodically.
+   Create .xhorse/self-assessment.md with status and evidence for every criterion.
+
+   Return a summary under 300 words: what was implemented, test results, any concerns."
+     [, model: "<generator_model from config>" — ONLY if generator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
+   })
+   ```
+
+3. After the generator returns:
+   - Check if `.xhorse/questions.md` exists and has new content. If so, present questions to the user.
+   - Read `.xhorse/self-assessment.md` to confirm it was created.
+
+### 3Cc: Pre-Check Gate
+
+Run deterministic checks before the expensive evaluator. Read `tech_stack` from `status.json`.
+
+1. **Build** (if `build_cmd` is set):
+   ```bash
+   <build_cmd>
+   ```
+   If fails: increment `generation.iteration`. If iteration < max_iterations, go back to 3Cb with the build error. If iteration >= max_iterations, go to 3Ce (user escalation).
+
+2. **Tests** (if `test_cmd` is set):
    ```bash
    <test_cmd>
    ```
-4. Merge back to the original branch:
+   If fails: increment `generation.iteration`. If iteration < max_iterations, go back to 3Cb with test failures. If iteration >= max_iterations, go to 3Ce (user escalation).
+
+3. **Lint** (if `lint_cmd` is set): Run it. Note results as warnings — do NOT block on lint.
+
+4. **Dev server health** (only if `frontend_testing` is configured):
+   ```bash
+   curl -sf -o /dev/null {{dev_server_url}}
+   ```
+   If unreachable: attempt to restart the server using `Bash(command: "{{dev_server_cmd}}", run_in_background: true)`, then poll for up to 30 seconds. If restart also fails, halt:
+   > "Dev server is down after generation and could not be restarted. The generator's changes may have broken the server. Check the application for errors before re-running."
+
+If all applicable pre-checks pass (or not configured), proceed to 3Cd.
+
+### 3Cd: Evaluate
+
+1. Get the diff scope:
+   ```bash
+   git diff <start_sha>..HEAD --stat
+   ```
+
+2. Spawn the **evaluator agent**:
+
+   **IMPORTANT**: The evaluator MUST NOT have access to Write or Edit tools. This is a security boundary — the evaluator judges, it does not modify.
+
+   ```
+   Agent({
+     description: "Evaluate full implementation",
+     prompt: "You are the Evaluator agent for the xhorse harness.
+
+   Read your full instructions at agents/evaluator.md — follow the Continuous Mode section.
+   The Continuous Mode section overrides Steps 1, 2, and 6. There is no sprint contract in this mode.
+
+   TOOL RESTRICTION: You do NOT have access to Write or Edit tools. Do not attempt to create, modify, or delete any files. You may only read files, search, and run commands. If you find yourself wanting to fix something, describe the fix in your report instead. This restriction is non-negotiable.[IF frontend_testing configured, append: ' You also have access to MCP Playwright tools prefixed with mcp__{{mcp_server_name}}__ (e.g., mcp__{{mcp_server_name}}__browser_navigate, mcp__{{mcp_server_name}}__browser_screenshot, mcp__{{mcp_server_name}}__browser_click). These are read-only verification tools and do not violate your no-write constraint.']
+
+   TASK: Evaluate the full implementation, Iteration <M>.
+   - Product spec: .xhorse/spec.md (acceptance criteria section)
+   - Generator self-assessment: .xhorse/self-assessment.md
+   - Evaluation criteria: skills/xhorse/references/evaluation-criteria.md
+   - Changes since generation start: run `git diff <start_sha>..HEAD`
+   - Test command: <test_cmd>
+   [IF frontend_testing configured: - Frontend testing enabled. Dev server: {{dev_server_url}}. MCP server: {{mcp_server_name}}. Read skills/frontend-testing/SKILL.md for frontend testing rules — follow the 'For Evaluators' section.]
+
+   Independently verify each acceptance criterion. Run tests. Check scope drift against Expected files lists.
+   Grade each criterion PASS/WARN/FAIL.
+
+   Return your evaluation report as structured text. Do NOT write any files.
+   Use header: 'Evaluation Report: Full Implementation, Iteration <M>'"
+     [, model: "<evaluator_model from config>" — ONLY if evaluator_model is set in config.json. If not set, omit the model parameter entirely so the agent inherits the current model.]
+   })
+   ```
+
+3. After the evaluator returns:
+   - Parse the verdict (PASS, PASS_WITH_WARNINGS, FAIL) from the output
+   - Parse the score (X/Y criteria passed)
+   - Write the evaluation report to `.xhorse/evaluations/continuous-eval-<iteration>.md`
+   - Commit:
+     ```bash
+     git add .xhorse/evaluations/
+     git commit -m "xhorse continuous eval <iteration>: <verdict>"
+     ```
+
+### 3Ce: Decision Gate
+
+Read the verdict from the evaluation.
+
+**PASS or PASS_WITH_WARNINGS**:
+1. Update `status.json`: set `phase` to `"complete"`.
+2. Commit:
+   ```bash
+   git add .xhorse/
+   git commit -m "xhorse: implementation complete (<verdict>)"
+   ```
+3. Report result to user. Show warnings if any.
+4. Go to Phase 4 (Completion).
+
+**FAIL (iteration < max_iterations)**:
+1. **Ratchet check**:
+   - If `generation.best_score` is set and current score < best_score:
+     - Report: "Score dropped ({{current}} < {{best}}). Reverting to best version."
+     - Run: `git reset --hard <generation.best_sha>`
+   - If current score >= best_score (or best_score is null):
+     - Update `generation.best_score` to current score
+     - Update `generation.best_sha` to current HEAD
+2. Increment `generation.iteration`
+3. Update `status.json`
+4. Report: "Evaluation FAIL (iteration {{M}}/{{max}}). Sending feedback to generator..."
+5. Loop back to 3Cb with the evaluation report path.
+
+**FAIL (iteration >= max_iterations)**:
+1. Report to the user:
+   - "Implementation failed evaluation after {{max}} attempts."
+   - Show the latest evaluation findings (key FAIL items)
+   - Show score history across iterations
+2. Ask the user to choose:
+   - "Give it more iterations" (increase max_iterations)
+   - "Adjust the spec and retry" (reset iteration)
+   - "Start fresh in sprint mode" (see below)
+   - "Stop the harness"
+3. Handle:
+   - More iterations: update max_iterations, loop back to 3Cb
+   - Adjust: let user edit spec, reset generation.iteration to 0, loop back to 3Cb
+   - **Start fresh in sprint mode**:
+     1. Keep the current branch and all committed code
+     2. Update config.json: set `mode` to `"sprints"`
+     3. Delete continuous-mode artifacts: `.xhorse/self-assessment.md`
+     4. Reset status.json to sprint-mode shape: `phase: "planning"`, `mode: "sprints"`, `current_sprint: null`, `completed_sprints: []`
+     5. Re-spawn the planner with: "The project has an existing partial implementation at HEAD. Analyze the current codebase state and produce a fresh product specification with sprint decomposition. Some functionality may already be implemented — include it as Sprint 1 (already complete) if tests pass."
+     6. Proceed with Phase 2 (spec approval), then Phase 3S (sprint loop)
+   - Stop: update phase to "stopped", report current state
+
+---
+
+## Phase 4: Completion
+
+1. Get full diff from base:
+   ```bash
+   git diff <base_sha>..HEAD --stat
+   ```
+2. Run final test suite:
+   ```bash
+   <test_cmd>
+   ```
+3. Merge back to the original branch:
    ```bash
    git checkout <base_branch>
    git merge xhorse/<session-id>
    ```
    If the merge fails (e.g., conflict), warn the user and leave them on `<base_branch>` with the merge in progress. Do not force-resolve conflicts.
 
-5. Report to the user:
+4. Report to the user:
+
+   **Sprint mode**:
    - **Summary**: X sprints completed, Y total iterations, Z warnings
    - **Files changed**: list from git diff stat
    - **Test results**: final test output
@@ -387,14 +642,22 @@ Read the verdict from the evaluation.
    - **Branch**: "Changes merged to `<base_branch>`. The `xhorse/<session-id>` branch is still available for reference."
      "To delete it: `git branch -d xhorse/<session-id>`"
 
-6. **Frontend testing note** (only if `frontend_testing` was configured):
+   **Continuous mode**:
+   - **Summary**: Implementation complete after {{generation.iteration + 1}} iteration(s). Final evaluation: {{verdict}} ({{score}}).
+   - **Files changed**: list from git diff stat
+   - **Test results**: final test output
+   - **Warnings**: warnings from evaluation report, if any
+   - **Branch**: "Changes merged to `<base_branch>`. The `xhorse/<session-id>` branch is still available for reference."
+     "To delete it: `git branch -d xhorse/<session-id>`"
+
+5. **Frontend testing note** (only if `frontend_testing` was configured):
    > "The dev server (`{{dev_server_cmd}}`) was started in the background and may still be running. Stop it manually if needed (e.g., find the process on the dev server port and kill it)."
 
 ## Orchestrator Rules
 
 1. **You own the loop.** Never ask an agent to decide whether to continue, skip, or stop. That's your job.
-2. **File-based communication.** Pass file paths to agents, not content. Agents read files themselves. This preserves context window.
+2. **File-based communication.** Pass file paths to agents, not content. Agents read files themselves. This preserves context window. In continuous mode, `.xhorse/self-assessment.md` is part of this communication.
 3. **Concise agent outputs.** Every agent prompt includes the 300-word return limit. Detailed output goes to files.
-4. **User checkpoints at natural boundaries.** After planning (spec review). After sprint failures (escalation). Never mid-generation.
-5. **State in status.json.** Every state transition updates status.json. If interrupted, the next invocation can resume.
+4. **User checkpoints at natural boundaries.** After planning (spec review). After evaluation failures (escalation). Never mid-generation.
+5. **State in status.json.** Every state transition updates status.json. If interrupted, the next invocation can resume. The `mode` field in status.json is authoritative.
 6. **Branch isolation.** All work happens on `xhorse/<session-id>`. The user's original branch is only modified at completion, when the xhorse branch is merged back.
