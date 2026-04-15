@@ -137,7 +137,7 @@ When enabled, the orchestrator starts the dev server before sprints, the generat
 
 ## Key Design Decisions
 
-- **Branch isolation**: All work happens on `xhorse/<session-id>`. Your original branch is never modified.
+- **Branch isolation**: All work happens on `xhorse/<session-id>` during sprints. On completion, changes are automatically merged back to your original branch.
 - **Ratchet scoring**: If a rework iteration scores lower than the previous best, the code is reverted to the best version before retrying.
 - **Pre-checks before evaluation**: Build, test, and lint run before the expensive evaluator agent, catching obvious failures cheaply.
 - **Three-tier grading**: PASS / WARN / FAIL (not binary). Warnings are logged but don't block progress.

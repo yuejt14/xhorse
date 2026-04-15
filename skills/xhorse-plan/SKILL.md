@@ -50,6 +50,7 @@ Run the planning phase of the xhorse harness. This creates a product specificati
    {
      "session_id": "<generate-short-id>",
      "branch": "xhorse/<session-id>",
+     "base_branch": "<current-branch-name>",
      "base_sha": "<current-HEAD-sha>",
      "phase": "planning",
      "user_prompt": "$ARGUMENTS",

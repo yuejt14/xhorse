@@ -38,7 +38,7 @@ The plugin consists of:
 2. **File-based communication** — Agents exchange info through structured files
 3. **Evaluator cannot write project files** — Enforced via prompt-level tool restriction in Agent() calls and agent definition
 4. **Pre-checks before evaluation** — Cheap deterministic checks (build, test) before expensive evaluator
-5. **Branch isolation** — All work on `xhorse/<session>` branch
+5. **Branch isolation** — All work on `xhorse/<session>` branch, auto-merged back to original branch on completion
 6. **Three-tier grading** — PASS / WARN / FAIL (not binary)
 7. **Ratchet scoring** — Revert if quality drops between iterations
 

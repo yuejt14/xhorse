@@ -22,7 +22,7 @@ You are the orchestrator of the xhorse harness. You coordinate three agents (Pla
 Check if `.xhorse/status.json` exists in the current working directory.
 
 **If it exists**: Read it. Check the `phase` field.
-- If `phase` is `"complete"`: Report "Previous session is complete. Delete `.xhorse/` to start a new one, or inspect the results on branch `{{branch}}`."
+- If `phase` is `"complete"`: Report "Previous session is complete. Changes were merged to `{{base_branch}}`. Delete `.xhorse/` to start a new one."
 - If `phase` is `"planning"` or `"sprinting"`: Ask the user: "Found an existing xhorse session (phase: {{phase}}, sprint: {{current_sprint.number}}). Resume this session or start fresh?" If resume, checkout the xhorse branch and skip to the appropriate phase. If fresh, confirm deletion of `.xhorse/` then proceed to Phase 1.
 
 **If it does not exist**: Proceed to Phase 1.
@@ -44,8 +44,9 @@ Check if `.xhorse/status.json` exists in the current working directory.
    - `build_cmd`: the build/compile command if available (e.g., `npx tsc --noEmit`)
    - For `package.json`: read it and use `scripts.test` if defined
 
-3. Record the current HEAD SHA:
+3. Record the current branch name and HEAD SHA:
    ```bash
+   git rev-parse --abbrev-ref HEAD
    git rev-parse HEAD
    ```
 
@@ -80,6 +81,7 @@ Check if `.xhorse/status.json` exists in the current working directory.
    {
      "session_id": "<id>",
      "branch": "xhorse/<id>",
+     "base_branch": "<original-branch-name>",
      "base_sha": "<sha>",
      "phase": "planning",
      "user_prompt": "$ARGUMENTS",
@@ -370,20 +372,22 @@ Read the verdict from the evaluation.
    ```bash
    <test_cmd>
    ```
-4. Report to the user:
+4. Merge back to the original branch:
+   ```bash
+   git checkout <base_branch>
+   git merge xhorse/<session-id>
+   ```
+   If the merge fails (e.g., conflict), warn the user and leave them on `<base_branch>` with the merge in progress. Do not force-resolve conflicts.
+
+5. Report to the user:
    - **Summary**: X sprints completed, Y total iterations, Z warnings
    - **Files changed**: list from git diff stat
    - **Test results**: final test output
    - **Warnings**: accumulated warnings from all sprints
-   - **Next steps**: "Your changes are on branch `xhorse/<session-id>`. To merge:"
-     ```
-     git checkout <original-branch>
-     git merge xhorse/<session-id>
-     ```
-     "Or to squash merge: `git merge --squash xhorse/<session-id>`"
-     "To discard: `git branch -D xhorse/<session-id>`"
+   - **Branch**: "Changes merged to `<base_branch>`. The `xhorse/<session-id>` branch is still available for reference."
+     "To delete it: `git branch -d xhorse/<session-id>`"
 
-5. **Frontend testing note** (only if `frontend_testing` was configured):
+6. **Frontend testing note** (only if `frontend_testing` was configured):
    > "The dev server (`{{dev_server_cmd}}`) was started in the background and may still be running. Stop it manually if needed (e.g., find the process on the dev server port and kill it)."
 
 ## Orchestrator Rules
@@ -393,4 +397,4 @@ Read the verdict from the evaluation.
 3. **Concise agent outputs.** Every agent prompt includes the 300-word return limit. Detailed output goes to files.
 4. **User checkpoints at natural boundaries.** After planning (spec review). After sprint failures (escalation). Never mid-generation.
 5. **State in status.json.** Every state transition updates status.json. If interrupted, the next invocation can resume.
-6. **Branch isolation.** All work happens on `xhorse/<session-id>`. The user's original branch is never modified.
+6. **Branch isolation.** All work happens on `xhorse/<session-id>`. The user's original branch is only modified at completion, when the xhorse branch is merged back.

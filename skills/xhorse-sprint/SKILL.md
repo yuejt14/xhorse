@@ -160,6 +160,12 @@ When all sprints are complete (`phase` is `"complete"`):
 1. Summarize all sprints: number completed, total iterations used, accumulated warnings
 2. List all files created/modified across all sprints
 3. Show final test results
-4. Report: "All sprints complete on branch `xhorse/<session-id>`. To merge: `git checkout <original-branch> && git merge xhorse/<session-id>`"
-5. **Frontend testing note** (only if `frontend_testing` was configured):
+4. Merge back to the original branch:
+   ```bash
+   git checkout <base_branch>
+   git merge xhorse/<session-id>
+   ```
+   If the merge fails, warn the user and leave them on `<base_branch>` with the merge in progress.
+5. Report: "All sprints complete. Changes merged to `<base_branch>`. The `xhorse/<session-id>` branch is still available for reference."
+6. **Frontend testing note** (only if `frontend_testing` was configured):
    > "The dev server (`{{dev_server_cmd}}`) was started in the background and may still be running. Stop it manually if needed."
